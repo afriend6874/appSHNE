@@ -5,12 +5,6 @@ import networkx as nx
 from stellargraph import StellarGraph as sg
 from stellargraph import IndexedArray
 
-# with open("config/dict_build.json", "r") as read_file:
-#     params = json.load(read_file)
-    
-# src=params["key_directory"]
-
-
 def get_jsons(src, filename):
     '''
     Helper function to open json files
@@ -42,14 +36,12 @@ def make_stellargraph(src):
     A=get_jsons(src, "dict_A.json")
     B=get_jsons(src, "dict_B.json")
     P=get_jsons(src, "dict_P.json")
-    #I=get_jsons(src, "dict_I.json")
     C=get_jsons(src, "api_calls.json")
     
     #get all nodes
     a_nodes=IndexedArray(index=list(set(A.keys())))
     b_nodes=IndexedArray(index=list(set(B.keys())))
     c_nodes=IndexedArray(index=list(set(C.keys())))
-    #i_nodes=IndexedArray(index=list(set(I.keys())))
     p_nodes=IndexedArray(index=list(set(P.keys())))
     print("Nodes Created")
     
@@ -65,7 +57,6 @@ def make_stellargraph(src):
     a_edges=np.array(list(nx.Graph(A).edges))
     b_edges=np.array(list(nx.Graph(B).edges))
     p_edges=np.array(list(nx.Graph(P).edges))
-    #i_edges=np.array(list(nx.Graph(I).edges))
     print("Edges computed")
     
     #np.concatenate contributes to majority of runtime for make_stellargraph(src)

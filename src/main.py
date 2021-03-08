@@ -9,6 +9,7 @@ import threading
 import getopt
 import sys
 import time
+import nbconvert
 from scipy import sparse
 from stellargraph import StellarGraph
 
@@ -64,7 +65,7 @@ def get_app_names(**kwargs):
             print("Limiting app intake to " + str(malignant_lim + benign_lim) + " apps")
         # print()
         mal_app_names = [[name+"/"+sub_name for sub_name in os.listdir(malignant_fp+"/"+name)] for name in os.listdir(malignant_fp) if os.path.isdir(malignant_fp + "/" + name)]
-        benign_app_names = [name for name in os.listdir(benign_fp) if (os.path.exists(benign_fp + "/" + name+"/"+"smali"))] #and (len(os.listdir(benign_fp + "/" + name+"/"+"smali")) != 0)]
+        benign_app_names = [name for name in os.listdir(benign_fp) if (os.path.exists(benign_fp + "/" + name+"/"+"smali"))]
         flat_list = []
         for sublist in mal_app_names:
             for item in sublist:
@@ -116,7 +117,6 @@ def get_app_names(**kwargs):
         mal_app_names = flat_list
         
         benign_app_names = [name for name in os.listdir(benign_fp) if os.path.isdir(benign_fp + "/" + name)]
-        #create_dictionary(mal_app_names,benign_app_names,malignant_fp,benign_fp)
     if verbose:
         print("Found %i malicious apps, %i benign apps in %i seconds"%(len(mal_app_names), len(benign_app_names), time.time()-start))
         print()
@@ -150,9 +150,7 @@ def create_dictionary(**kwargs):
     '''
     malignant_apps=kwargs["malignant_apps"]
     benign_apps=kwargs["benign_apps"]
-    # out=kwargs["out"]
     core_count=kwargs["core_count"]
-    # limiter=kwargs["limiter"]
     malignant_fp=kwargs["mal_fp"]
     benign_fp=kwargs["benign_fp"]
     multi_threading=kwargs["multi_threading"]
@@ -213,12 +211,6 @@ def build_dictionaries(**params):
     
     '''
     fp=params["dict_directory"]
-    # # verbose=params["verbose"]
-    # directory=params["out_path"]
-    # truncate=params["truncate"]
-    # lower_bound_api_count=params["lower_bound_api_count"]
-    # params["verbose"]=out
-    
     print("--- Starting Dictionary Creation ---")
     start_time = time.time()
     dict_B, dict_P, dict_I, dict_A = dict_builder.fast_dict(**params)
@@ -237,9 +229,6 @@ def make_graph(src, dst):
     print()
     # list of all node types in the graph
     node_types = ["api_call_nodes", "package_nodes", "app_nodes", "block_nodes"]
-    #not working:
-    #node_type_set = G.node_types()
-    # create dictionary with counts of each node type and save to json
     node_dict = {type:len(G.nodes_of_type(type)) for type in node_types}
     json_functions.save_json(node_dict, dst)
     return G
@@ -251,7 +240,7 @@ def run_shne(**params):
     SHNE.run_SHNE(**params)
     print("--- SHNE Embedding Layer Created in " + str(int(time.time() - s_app)) + " Seconds ---")
 
-def run_eda(**kwargs):
+def run_eda(filename):
     '''
     Function to run eda.
 
@@ -273,16 +262,25 @@ def run_eda(**kwargs):
     None. Will save notebook of this eda run in the path specified in 
     '''
     print("---RUNNING EDA---")
-    malware, benign=eda.get_node_data(
-        verbose=kwargs["verbose"],
-        lim=kwargs["limit"], 
-        multiprocessing=kwargs["multiprocessing"],
-        key_fn=kwargs["data_naming_key"],
-        src=kwargs["data_extract_loc"]
-    )
-    return malware, benign
+    file_types=["pdf", "html"]
+    cmd="jupyter nbconvert --to notebook %s"%filename
+    output=os.popen(cmd)
+    print(output)
+    for file in file_types:
+        cmd="jupyter nbconvert --to %s %s"%(file, filename)
+        output=os.popen(cmd)
+        print(output)
+#     malware, benign=eda.get_node_data(
+#         verbose=kwargs["verbose"],
+#         lim=kwargs["limit"], 
+#         multiprocessing=kwargs["multiprocessing"],
+#         key_fn=kwargs["data_naming_key"],
+#         src=kwargs["data_extract_loc"]
+#     )
+#     return malware, benign
+    
 
-def run_all(**kwargs):
+def run_all(kwargs):
     '''
     Runs the main project pipeline logic, given the targets.
     
@@ -439,7 +437,6 @@ def run_all(**kwargs):
     unique_api_path=os.path.join(etl_params["data_naming_key_dir"], etl_params["data_naming_key_filename"])
     if not cmd_ln_args["skip_embeddings"]:
         print()
-        # print(w2v_params)
         word2vec.create_w2v_embedding( 
             path=etl_params["data_extract_loc"],
             path_to_unique_apis=unique_api_path,

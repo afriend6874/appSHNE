@@ -88,13 +88,10 @@ def fast_dict(**kwargs):
     ix=0 #index for invoke types
     cx=0 #index for calls
     iix=0 #keep track of iterations
-    #print(list _of_files)    
     start_time=time.time()
     for file in tqdm(list_of_files):
         if "checkpoint" in file: #for stupid git ignores
             continue
-        # with open(direc + file, "r") as f:
-        #     filez = json.load(f)
         fn=direc+file
         filez=jf.load_json(fn)
                 
@@ -114,7 +111,6 @@ def fast_dict(**kwargs):
                         ckey, cx=add_key(key_lookup, api_call, "c",cx, "calls")    
                         append_value(A,akey,ckey) #append key to dictionary
                         append_value(B, bkey, ckey) 
-        #                 call_list.add(ckey)
 
                         package=call.split(";")[0].split(",")[-1].strip()
                         pkey, px=add_key(key_lookup, package, "p",px, "packages")    
@@ -138,7 +134,6 @@ def fast_dict(**kwargs):
             print("Number of API calls Before Truncation: " + str(len(B.keys())))
         for i in [B, P, I, A]:
             #remove files where APIs occur less than lower_bound_api_count across whole data set
-            #doesn't work rn
             # remove both keys and values from dict            
             d = dict((k, v) for k, v in C.items() if v <= lower_bound_api_count)
             for k in d.keys():
@@ -154,7 +149,6 @@ def fast_dict(**kwargs):
     if verbose:        
         print("Saving node key lookup table to: %s"%key_dst)
         print("Saving api call list to: %s"%call_dst)
-    # print("Done\n")
     #save the key_lookup table to "key_directory" config parameter in dict_build.json
     return B, P, I, A
                     

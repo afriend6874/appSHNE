@@ -4,17 +4,9 @@ import time
 import pandas as pd
 import numpy as np
 import tqdm
-#from src.data_creation.unpack import *
 import threading
 from src.data_creation.explore import printProgressBar
 from multiprocessing import Pool, cpu_count
-
-
-# with open("config/parsing_data.json", "r") as read_file:
-#     params = json.load(read_file)
-# multi_threading = params["multithreading"]
-# verbose = params["verbose"]
-# out_path = params["out_path"]
 
 
 def create_app_files(**kwargs):
@@ -110,30 +102,17 @@ def get_json(args):
     all_rel_info = [] # list of lists with each inner list being a codeblock of methods
     
     for root, dirs, files in os.walk(path, topdown=False):
-#         print('\troot',root)
-#         print('\tdirs',dirs)
-#         print('\tfiles',files)
         for name in files:
             if "checkpoint" not in name:
-#                 print("\tNAME",name)
                 t = str(os.path.join(root, name))
-#                 print("\tt:",t)
                 if t[-6:] == ".smali":
                     temp = temp + str(open(t, "r").read())
-#             else:
-#                 print('SKIPPED')
                     
     code_blocks = temp.split(".end method")
-#     print('\tall_rel_info',all_rel_info)
     for bloc in code_blocks:
-        #print('block',bloc)
         all_rel_info.append(re.findall('invoke-.+', bloc))
-#     print('\tall_rel_info',all_rel_info)
     
     os.makedirs(out_path, exist_ok=True)
     with open(out_path + path.split("/")[-1] +typer+'extract.json', 'w') as f:
         json.dump(all_rel_info, f)
-        
-
     return
-    

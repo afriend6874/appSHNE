@@ -149,7 +149,6 @@ def build_api_dict(directory, app, global_dict):
     :param global_dict : dict
         Global api dictionary to augment
     """
-#     print(app)
     with open(directory + "/" + app, "r") as f:
             codeblocks = json.load(f)
 

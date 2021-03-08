@@ -9,6 +9,7 @@ import threading
 import getopt
 import sys
 import time
+import nbconvert
 from scipy import sparse
 from stellargraph import StellarGraph
 
@@ -19,7 +20,9 @@ from src.data_creation import build_network
 from src.graph_learning import node2vec
 from src.graph_learning import metapath2vec
 from src.graph_learning import word2vec
-from SHNE_code import SHNE
+from src.data_creation.explore import splitall
+from src.SHNE_code import SHNE
+from src.eda import eda
 
 def get_app_names(**kwargs):
     '''
@@ -28,22 +31,18 @@ def get_app_names(**kwargs):
     Parameters
     ----------
     
-    limiter
-        boolean value to limit number of app paths extracted. If True benign and malicious apps will be limited by the number given by their respective limit parameter, benign_lim and malignant_lim
-
-    **kwargs
-
-        malignant_fp
-            The file path of the malicious apps
-
-        benign_fp
-            The file path of the benign apps
-
-        lim_benign
-            The number of benign apps that the outputed paths will be limited to
-
-        lim_mal
-            The number of malicious apps that the outputed paths will be limited to
+    limiter: logical, required
+        boolean value to limit number of app paths extracted. 
+        If True benign and malicious apps will be limited by the number given by their 
+        respective limit parameter,benign_lim and malignant_lim
+    malignant_fp: str, required
+        The file path of the malicious apps
+    benign_fp: str, required
+        The file path of the benign apps
+    lim_benign: logical, required
+        The number of benign apps that the outputed paths will be limited to
+    lim_mal: logical, required
+        The number of malicious apps that the outputed paths will be limited to
         
     Returns
     -------
@@ -56,14 +55,17 @@ def get_app_names(**kwargs):
     benign_fp=kwargs["benign_fp"]
     benign_lim=kwargs["lim_benign"]
     malignant_lim=kwargs["lim_mal"]
+    verbose=kwargs["verbose"]
     
-    print("\n--- Starting Malware Detection Pipeline ---")
+    if verbose:
+        print("\n--- Starting Malware Detection Pipeline ---")
     start = time.time()
     if limiter:
-        print("Limiting app intake to " + str(malignant_lim + benign_lim) + " apps")
-        print()
+        if verbose:
+            print("Limiting app intake to " + str(malignant_lim + benign_lim) + " apps")
+        # print()
         mal_app_names = [[name+"/"+sub_name for sub_name in os.listdir(malignant_fp+"/"+name)] for name in os.listdir(malignant_fp) if os.path.isdir(malignant_fp + "/" + name)]
-        benign_app_names = [name for name in os.listdir(benign_fp) if (os.path.exists(benign_fp + "/" + name+"/"+"smali"))] #and (len(os.listdir(benign_fp + "/" + name+"/"+"smali")) != 0)]
+        benign_app_names = [name for name in os.listdir(benign_fp) if (os.path.exists(benign_fp + "/" + name+"/"+"smali"))]
         flat_list = []
         for sublist in mal_app_names:
             for item in sublist:
@@ -88,13 +90,11 @@ def get_app_names(**kwargs):
         #limit the apps
         try:
             mal_app_names = mal_app_names[:malignant_lim]
-            print(len(mal_app_names))
         except:
             mal_app_names = mal_app_names
             
         try:
             benign_app_names = benign_app_names[:benign_lim]
-            print(len(benign_app_names))
         except:
             benign_app_names = benign_app_names
             
@@ -117,44 +117,43 @@ def get_app_names(**kwargs):
         mal_app_names = flat_list
         
         benign_app_names = [name for name in os.listdir(benign_fp) if os.path.isdir(benign_fp + "/" + name)]
-        #create_dictionary(mal_app_names,benign_app_names,malignant_fp,benign_fp)
+    if verbose:
+        print("Found %i malicious apps, %i benign apps in %i seconds"%(len(mal_app_names), len(benign_app_names), time.time()-start))
+        print()
     return mal_app_names, benign_app_names
         
-def create_dictionary(malignant_apps, benign_apps, **kwargs):
+def create_dictionary(**kwargs):
     '''
     Create dictionaries of individual app api calls.
     Dictionaries wil be saved to
     
     Parameters
-    ----------
-            
-    malignant_apps
-        Names of benign apps
-        
-    benign_apps
-        Names of benign apps
-        
-    **kwargs
-        malignant_fp
-            The file path of the malicious apps
-
-        benign_fp
-            The file path of the benign apps
-
-        multithreading
-            Boolean value to turn on multithreaded processing of data
-
-        out_path
-            File path of outputed parsed apps
-
-        verbose
-            Boolean value to print progress while building dictionaries
+    ----------            
+    malignant_apps: listOfStrings, required
+        Names of benign apps        
+    benign_apps: listOfStrings, required
+        Names of benign apps        
+    malignant_fp: str, required
+        The file path of the malicious apps
+    benign_fp: str, required
+        The file path of the benign apps
+    multithreading: logical, required
+        Boolean value to turn on multithreaded processing of data
+    out_path: str, required
+        File path of outputed parsed apps
+    verbose: logical, required
+        Boolean value to print progress while building dictionaries
     
+    Returns
+    -------
+    None
     '''
-    limiter=kwargs["limiter"]
+    malignant_apps=kwargs["malignant_apps"]
+    benign_apps=kwargs["benign_apps"]
+    core_count=kwargs["core_count"]
     malignant_fp=kwargs["mal_fp"]
     benign_fp=kwargs["benign_fp"]
-    multi_threading=kwargs["multithreading"]
+    multi_threading=kwargs["multi_threading"]
     out_path=kwargs["out_path"]
     verbose=kwargs["verbose"]
     
@@ -164,12 +163,28 @@ def create_dictionary(malignant_apps, benign_apps, **kwargs):
         malignant_apps.remove('.ipynb_checkpoints')
 
     start_time = time.time()
+
+    #remove files already in folder
+    for file in os.listdir(out_path):
+        fp=os.path.join(out_path, file)
+        os.remove(fp)
+
     print("--- Begin Parsing Benign and Malicious Apps ---")
-    confirm_exc = get_data.create_app_files(benign_fp, benign_apps,malignant_fp, malignant_apps, multi_threading, verbose, out_path)
+    confirm_exc = get_data.create_app_files(
+        benign_fp=benign_fp,
+        benign_app=benign_apps,
+        mal_fp=malignant_fp,
+        mal_app=malignant_apps,
+        multi_threading=multi_threading,
+        verbose=verbose, 
+        out_path=out_path,
+        core_count=core_count
+    )
+    
     if confirm_exc:
-        print("--- All Apps Parsed in " + str(int(time.time() - start_time)) + " Seconds ---")
-        print()
-        print()
+        if verbose:
+            print("--- All Apps Parsed in " + str(int(time.time() - start_time)) + " Seconds ---")
+            print()
     else:
         raise ValueError("ERROR get_data.create_app_files failed")
 
@@ -185,39 +200,27 @@ def build_dictionaries(**params):
     
     Parameters
     ----------
-    **params
-        dict_directory
-            File path of dictionary output
-
-        out_path
-            File path to get json files of api calls from parsed apps
-
-        verbose
-            Boolean value to print progress while building dictionaries
-
-        truncate
-            Boolean value to 
-
-        lower_bound_api_count
+    dict_directory: dictionary, required
+        File path of dictionary output
+    out_path: str, required
+        File path to get json files of api calls from parsed apps
+    verbose: logical value, required
+        Boolean value to print progress while building dictionaries
+    truncate: logical value, required
+        Boolean value to 
     
     '''
-    parsed_fp=params["dict_directory"]
-    verbose=params["verbose"]
-    directory=params["out_path"]
-    truncate=params["truncate"]
-    lower_bound_api_count=params["lower_bound_api_count"]
-    
-    
+    fp=params["dict_directory"]
     print("--- Starting Dictionary Creation ---")
     start_time = time.time()
-    dict_B, dict_P, dict_I, dict_A = dict_builder.fast_dict(directory, verbose, truncate, lower_bound_api_count, parsed_fp)
+    dict_B, dict_P, dict_I, dict_A = dict_builder.fast_dict(**params)
     for t,fname in zip([dict_A, dict_B, dict_P, dict_I],["dict_A", "dict_B", "dict_P", "dict_I"]):
-        json_functions.save_json(t,parsed_fp+fname)       
+        json_functions.save_json(t, fp+fname)       
     print("--- Dictionary Creation Done in " + str(int(time.time() - start_time)) + " Seconds ---")
     print()
-    print()
 
-def make_graph(src):
+def make_graph(src, dst):
+    print()
     print("--- Starting StellarGraph Creation ---")
     start_time = time.time()
     G=build_network.make_stellargraph(src)
@@ -226,146 +229,226 @@ def make_graph(src):
     print()
     # list of all node types in the graph
     node_types = ["api_call_nodes", "package_nodes", "app_nodes", "block_nodes"]
-#     not working:
-#     node_type_set = G.node_types()
-#     print(node_type_set)
-    # create dictionary with counts of each node type and save to json
     node_dict = {type:len(G.nodes_of_type(type)) for type in node_types}
-    json_functions.save_json(node_dict, "out/data/node_counts")
+    json_functions.save_json(node_dict, dst)
     return G
 
-def run_shne():
+def run_shne(**params):
     #Start SHNE 
     print("--- Starting SHNE ---")
     s_app = time.time()
-    SHNE.run_SHNE()
+    SHNE.run_SHNE(**params)
     print("--- SHNE Embedding Layer Created in " + str(int(time.time() - s_app)) + " Seconds ---")
 
-# def run_all(test,**params):
-#     '''
-#     Runs the main project pipeline logic, given the targets.
+def run_eda(filename):
+    '''
+    Function to run eda.
+
+    Parameters
+    ----------
+    verbose: logical, optional. Default True
+        If true print updates on eda. Do not print updates otherwise
+    limit: int, optional. Default None
+        If not `None` then limit apps by that ammount 
+    multiprocessing: logical, optional. Default True
+        If true run with multiprocessing. Run in serial otherwise
+    data_naming_key: str, required
+        Path to json file lookup table of node code for repectives <app>, <block>, <api_call>, and <package>
+        strings    
+    data_extract_loc: str, required
+        Path of parsed smali code in json files
+    Returns
+    -------
+    None. Will save notebook of this eda run in the path specified in 
+    '''
+    print("---RUNNING EDA---")
+    file_types=["notebook", "pdf", "html"]
+    for file in file_types:
+        cmd="jupyter nbconvert --to %s --execute %s"%(file, filename)
+        output=os.popen(cmd)
+        print(output)
+#     malware, benign=eda.get_node_data(
+#         verbose=kwargs["verbose"],
+#         lim=kwargs["limit"], 
+#         multiprocessing=kwargs["multiprocessing"],
+#         key_fn=kwargs["data_naming_key"],
+#         src=kwargs["data_extract_loc"]
+#     )
+#     return malware, benign
     
-#     Parameters
-#     ----------
-#     targets
-#         an optional value form commant line. If the tags `-t`, `--test`, or `--Test` the test set specified by `mal_fp_test_loc` and `benign_fp_test_loc` in `**data_params` will be used.
-        
-#     **kwargs
-#         Key worded arguments from configuration files
-        
-#         mal_fp
-#             file path of the malignant apps
-            
-#         benign_fp
-#             file path of the benign apps
-            
-#         limiter
-#             Boolean value to dictate if number of apps parsed is to be limited
-            
-#         lim_mal
-#             Number of malignant apps to limit parsing of if limiter is True
-            
-#         lim_benign
-#             Number of benign apps to limit parsing of if limiter is True
-            
-#         mal_fp_test_loc
-#             file path of test malignant apps
-            
-#         benign_fp_test_loc
-#             file path of benign apps
-                    
-#         directory
-#             File path to get json files of api calls from parsed apps
-            
-#         verbose
-#             Boolean value to print progress while building dictionaries
-            
-#         truncate
-#             Boolean value to 
-            
-#         lower_bound_api_count
-        
-#         dict_directory
-#             File path of dictionary output
-            
-#         multithreading
-#             Boolean value to turn on multithreaded processing of data
-            
-#         out_path
-#             File path of outputed parsed apps
-            
-#         verbose
-#             Boolean value to print progress while building dictionaries
-            
-#         options
-#             Single character options for command line
-            
-#         long_options
-#             String options for command line
-#     '''
-#     print()
-#     print()
-#     print(params)
-#     etl_params=params["etl-params"]
-#     wv_params=params["word2vec-params"]
+
+def run_all(kwargs):
+    '''
+    Runs the main project pipeline logic, given the targets.
     
-#     if test:
-#         etl_params["mal_fp"]=etl_params["mal_fp_test"]
-#         etl_params["benign_fp"]=etl_params["benign_fp_test"]        
-#         etl_params["out_path"]=etl_params["out_path_test"]
-#         etl_params["out_path"]=etl_params["out_path_test"]
-#         etl_params["dict_directory"] = etl_params["dict_directory-test"]
-        
-#         etl_params["data_extract_loc"]=etl_params["data_extract_loc_test"]
-#         etl_params["data_naming_key"]=etl_params["data_naming_key_test"]
-        
-#     check_files=["api_calls.json","dict_A.json","dict_B.json","dict_I.json","dict_P.json","naming_key.json"]
-#     check_files2=["content.pkl","het_random_walk_full.txt","node_counts.json","word_embedding.txt"]
+    Parameters
+    ----------
+    cmd_line_args: Dictionary, required
+        Arguments passed on in command lines:
+            test: run on test est
+            node2vec_walk: perfrom node2vec walk instead of word2vec
+            embeddings_only: only get word2vec/node2vec embeddings
+            skip_embeddings: skip word2vec/node2vec embeddings creation
+            skip_shne: skip shne model creation
+            parse_only: Only get api dictionaries. Do not create embeddings or models
+            overwrite: Overwrite any data that may already exist in out folder
+            redirect_std_out: Save cmd line output to text file. Hides console outputs
+            time: time how long to run
+    params: Dictionary, required
+        dictionary of parameters in found in config file in `config/params.json`
+            mal_fp: string
+                file path of the malignant apps
+            benign_fp: string
+                file path of the benign apps
+            limiter: bool
+                Boolean value to dictate if number of apps parsed is to be limited
+            lim_mal: int
+                Number of malignant apps to limit parsing of if limiter is True 
+            lim_benign: int
+                Number of benign apps to limit parsing of if limiter is True
+            mal_fp_test_loc: string
+                file path of test malignant apps            
+            benign_fp_test_loc: string
+                file path of benign apps
+            directory: string
+                File path to get json files of api calls from parsed apps
+            verbose: bool
+                Boolean value to print progress while building dictionaries
+            truncate: bool
+                Boolean value to
+            dict_directory: string
+                File path of dictionary output
+            multithreading: bool
+                Boolean value to turn on multithreaded processing of data    
+            out_path: string
+                File path of outputed parsed apps            
+            verbose: bool
+                Boolean value to print progress while building dictionaries            
+    '''
+    params=kwargs["params"]
+    cmd_ln_args=kwargs["cmd_line_args"]
+
+    etl_params=params["etl-params"]
+    w2v_params=params["word2vec-params"]
+
+    SKIP_SHNE=cmd_ln_args["skip_shne"]
+    EMBEDDINGS_ONLY=cmd_ln_args["embeddings_only"]
+    PARSE_ONLY=cmd_ln_args["parse_only"]
+    OVERWRITE=cmd_ln_args["overwrite"]
+    SAVE_OUTPUT=cmd_ln_args["redirect_std_out"]
+
+    CHECK_FILES=params["check_files"]
+    CHECK_FILES2=params["check_files2"]
+    SHNE_PATH=params["shne-params"]["datapath"]
+    VERBOSE=params["verbose"]
+    NUM_CORES=params["core_count"]
+    MULTIPROCESS=params["multithreading"]
+
+    DICTIONARY_EXTRACT_DIR=etl_params["dict_directory"]
+    ETL_LIMITER=etl_params["limiter"]
+    ETL_MALICIOUS_PATH=etl_params["mal_fp"]
+    ETL_BENIGN_PATH=etl_params["benign_fp"]
+    ETL_LIM=etl_params["lim_apps"]
+    ETL_OUT_PATH=etl_params["out_path"]
+    ETL_TRUNCATE=etl_params["truncate"]
+    API_BOUND=etl_params["lower_bound_api_count"]
+    NAMING_KEY=etl_params["data_naming_key_filename"]
+    API_CALLS_TABLE=etl_params["api_call_filename"]
     
+    #run shne if preprocessing is done
+    data_exists=os.path.isdir(SHNE_PATH)
+    preprocessing_done=data_exists and all([cf in os.listdir(SHNE_PATH) for cf in CHECK_FILES2])
+
+    #skip preprocessing and just run SHNE
+    cmd_line_shne=EMBEDDINGS_ONLY or PARSE_ONLY or OVERWRITE
+    if preprocessing_done and not SKIP_SHNE and not cmd_line_shne:
+        print("PREPROCESSING DONE, STARTING SHNE")
+        run_shne()
+        return
+
+    # if app files have already been parsed, then skip dictionary creation
+    directory_exists=os.path.isdir(DICTIONARY_EXTRACT_DIR) 
+    if directory_exists:
+        all_files_in_directory=all([cf in os.listdir(DICTIONARY_EXTRACT_DIR) for cf in CHECK_FILES])
+        app_dicts_already_created=directory_exists and all_files_in_directory
+    else:
+        app_dicts_already_created=False
     
-#     if os.path.isdir("out/data/") and all([cf in os.listdir("out/data/") for cf in check_files2]):
-#         print("PREPROCESSING DONE, STARTING SHNE")
-#         run_shne()
+    if app_dicts_already_created and not OVERWRITE:
+        print("--- DICTIONARIES ALREADY CREATED, STARTING STELLARGRAPH CREATION ---")
+
+    else:
+        #start extracting smali code
+        mal_app_names, benign_app_names=get_app_names(
+            limiter=ETL_LIMITER,
+            mal_fp=ETL_MALICIOUS_PATH,
+            benign_fp=ETL_BENIGN_PATH,
+            lim_benign=ETL_LIM,
+            lim_mal=ETL_LIM,
+            verbose=VERBOSE
+        )
+        dictionary_verbose=VERBOSE and not SAVE_OUTPUT
+        create_dictionary(
+            malignant_apps=mal_app_names,
+            benign_apps=benign_app_names, 
+            core_count=NUM_CORES,
+            verbose=dictionary_verbose,
+            mal_fp=ETL_MALICIOUS_PATH,
+            benign_fp=ETL_BENIGN_PATH,
+            multi_threading=MULTIPROCESS,
+            out_path=ETL_OUT_PATH
+        )
+        build_dictionaries(
+            dict_directory=DICTIONARY_EXTRACT_DIR,
+            verbose=dictionary_verbose,
+            out_path=ETL_OUT_PATH,
+            truncate=ETL_TRUNCATE,
+            lower_bound_api_count=API_BOUND,
+            data_naming_key_filename=NAMING_KEY,
+            api_call_filename=API_CALLS_TABLE
+        )
         
-#     else:
-#         if os.path.isdir(etl_params["dict_directory"]) and all([cf in os.listdir(etl_params["dict_directory"]) for cf in check_files]):
-#             print("--- DICTIONARIES ALREADY CREATED, STARTING STELLARGRAPH CREATION ---")
+    if PARSE_ONLY:
+        if VERBOSE:
+            print("Done.")
+        return
+    
+    # get StellarGraph Network Graph
+    sg_dst=os.path.join(params["shne-params"]["datapath"], params["shne-params"]["node_counts_filename"])
+    G=make_graph(DICTIONARY_EXTRACT_DIR, sg_dst)
+           
+    if cmd_ln_args["node2vec_walk"]:
+        #generate node2vec random walks
+        node2vec.node2vec_walk(G, params["node2vec-params"])
+        params["shne-params"]["datapath"]=params["node2vec-params"]["save_dir"]
+    else:
+        # generate metapath2vec random walks
+        metapath2vec.metapath2vec_walk(G, params["metapath2vec-params"])
+        params["shne-params"]["datapath"]=params["word2vec-params"]["save_dir"]
+    
+    if EMBEDDINGS_ONLY:
+        if VERBOSE:
+            print("Done.")
+        return
+    #BRADEN
+    unique_api_path=os.path.join(etl_params["data_naming_key_dir"], etl_params["data_naming_key_filename"])
+    if not cmd_ln_args["skip_embeddings"]:
+        print()
+        word2vec.create_w2v_embedding( 
+            path=etl_params["data_extract_loc"],
+            path_to_unique_apis=unique_api_path,
+            **w2v_params
+        ) #Config 
+    
+    if not SKIP_SHNE:
+        print()
+        run_shne(**params)
 
-#             # get StellarGraph Network Graph
-#             G=make_graph(etl_params["dict_directory"])
-
-#             # generate node2vec random walks
-#             #node2vec.node2vec_walk(G, params["node2vec-params"])
-
-#             # generate metapath2vec random walks
-#             metapath2vec.metapath2vec_walk(G, params["metapath2vec-params"])
-
-#             #BRADEN
-#             word2vec.create_w2v_embedding(etl_params["data_extract_loc"],wv_params["size"],wv_params["window"],wv_params["workers"],etl_params["data_naming_key"]) #Config 
-#             run_shne()
-
-#         else:
-#             #start extracting smali code
-#     #         mainpy.extract(limiter, mal_fp, benign_fp, lim_benign, lim_mal, multithreading, verbose, out_path)
-#             mal_app_names, benign_app_names=get_app_names(**etl_params)
-
-#             create_dictionary(mal_app_names, benign_app_names, **etl_params)
-
-
-#             #create dictionaries
-#             build_dictionaries(**etl_params)
-
-#             # get StellarGraph Network Graph
-#             G=make_graph(etl_params["dict_directory"])
-
-
-#             # generate node2vec random walks
-#             #node2vec.node2vec_walk(G, params["node2vec-params"])
-
-#             # generate metapath2vec random walks
-#             metapath2vec.metapath2vec_walk(G, params["metapath2vec-params"])
-
-#             #BRADEN
-#             word2vec.create_w2v_embedding(etl_params["data_extract_loc"],wv_params["size"],wv_params["window"],wv_params["workers"],etl_params["data_naming_key"]) #Config
-#             run_shne()
-        
+    #save final parameters
+    out={
+        "params":params,
+        "command_line_arguments": cmd_ln_args
+    }
+    out_fn=os.path.join(params["out_path"],"final_"+params["params_name"])
+    json_functions.save_json(out, out_fn)
+    return

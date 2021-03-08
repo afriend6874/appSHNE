@@ -113,7 +113,9 @@
         "unstructured_embedding_hist_filename" : "node_unstructured_embeddings_hist.pdf",
         "plots_dir": "eda/plots",
         "w2v_embeddings_hist": "w2v_embeddings_hist.pdf",
-        "w2v_from_m2v_embeddings_hist" : "w2v_from_m2v_embeddings_hist.pdf"
+        "w2v_from_m2v_embeddings_hist" : "w2v_from_m2v_embeddings_hist.pdf",
+        "eda_dir": "/home/apfriend/Documents/ucsd/dsc180/shne/appSHNE/notebooks",
+        "eda_notebook" : "EDA.ipynb"
     },
     
     "options": {
