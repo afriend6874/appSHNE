@@ -230,16 +230,16 @@ def apply_command_line_args(args, params):
             print("Running EDA")
         eda_params=params["eda-params"]
 
-        args_passed=eda_params["args_literal"]
-        eda_idx=any([args_passed.index(tag) for tag in params["options"]["eda"]])
-        eda_args=args_passed[eda_idx:]
+        # args_passed=eda_params["args_literal"]
+        # eda_idx=any([args_passed.index(tag) for tag in params["options"]["eda"]])
+        # eda_args=args_passed[eda_idx:]
        
-        eda_args_passed=get_eda_args(eda_args, eda_params["command_line_options"])
+        # eda_args_passed=get_eda_args(eda_args, eda_params["command_line_options"])
 
-        if isinstance(eda_args_passed["limit"], int):
-            limit_eda=eda_args_passed["limit"]
-        else:
-            limit_eda=eda_params["limit_eda"]
+        # if isinstance(eda_args_passed["limit"], int):
+        #     limit_eda=eda_args_passed["limit"]
+        # else:
+        #     limit_eda=eda_params["limit_eda"]
 
 #         eda_params={
 #             "verbose":params["verbose"],
@@ -250,7 +250,7 @@ def apply_command_line_args(args, params):
 #         }
         
         filepath=os.path.join(eda_params["eda_dir"],eda_params["eda_notebook"])
-        if eda_args_passed["time"]:
+        if TIME:
             if VERBOSE:
                 print("Timing EDA run")
             time_func(Main.run_eda, filepath)
