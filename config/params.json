@@ -9,8 +9,8 @@
         "dict_directory":"data/dictionaries/",
         "dict_directory-test":"test/data/dictionaries/",
         
-        "mal_fp": "/home/apfriend/Documents/ucsd/dsc180/shne/results/apps/malicious",
-        "benign_fp": "/home/apfriend/Documents/ucsd/dsc180/shne/results/apps/benign",       
+        "mal_fp": "results/apps/malicious",
+        "benign_fp": "results/apps/benign",       
         "mal_fp_test": "test/test-apps/malware",
         "benign_fp_test": "test/test-apps/benign",
         
@@ -93,8 +93,8 @@
         "limit_eda":false,
         "limit_amount":0,
         "out_path":"eda/dictionaries/data_extract/",
-        "mal_fp":"/home/apfriend/Documents/ucsd/dsc180/shne/results/apps/malicious",
-        "benign_fp":"/home/apfriend/Documents/ucsd/dsc180/shne/results/apps/benign",
+        "mal_fp":"results/apps/malicious",
+        "benign_fp":"results/apps/benign",
         "data_naming_key_filename":"naming_key.json",
         "dict_directory":"data/dictionaries/",
         "data_extract_loc":"data/dictionaries/data_extract/",
@@ -114,7 +114,7 @@
         "plots_dir": "eda/plots",
         "w2v_embeddings_hist": "w2v_embeddings_hist.pdf",
         "w2v_from_m2v_embeddings_hist" : "w2v_from_m2v_embeddings_hist.pdf",
-        "eda_dir": "/home/apfriend/Documents/ucsd/dsc180/shne/appSHNE/notebooks",
+        "eda_dir": "notebooks",
         "eda_notebook" : "EDA.ipynb"
     },
     
@@ -174,7 +174,7 @@
     
     "check_files" : ["api_calls.json","dict_A.json","dict_B.json","dict_I.json","dict_P.json","naming_key.json"],
     "check_files2": ["content.pkl","het_random_walk_full.txt","node_counts.json","word_embedding.txt"],
-    "out_path":"/home/apfriend/Documents/ucsd/dsc180/shne/results/out",
+    "out_path":"results/out",
     "test_out_path":"out/test-shne-src",
     "verbose": true,
     "params_name":"params_log.json",
